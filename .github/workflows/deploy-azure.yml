@@ -1,0 +1,64 @@
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-azure
+  cancel-in-progress: false
+
+env:
+  AZURE_CLIENT_ID: f58f6878-5102-46fc-8972-7ced9ac61a17
+  AZURE_TENANT_ID: f0701e68-a1fa-4a29-8a5f-e0b29ab0fa2b
+  AZURE_SUBSCRIPTION_ID: c7161664-1292-4a34-b1b8-a9b027cb7a02
+  REGISTRY: acrlocinsumami
+  IMAGE: acrlocinsumami.azurecr.io/umami
+  RESOURCE_GROUP: rg-locins-umami
+  WEBAPP: locins-umami
+
+jobs:
+  deploy:
+    name: Build, push, and deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Log into Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log into ACR
+        run: az acr login --name "$REGISTRY"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.WEBAPP }}
+          resource-group-name: ${{ env.RESOURCE_GROUP }}
+          images: ${{ env.IMAGE }}:${{ github.sha }}

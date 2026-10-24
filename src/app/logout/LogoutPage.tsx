@@ -5,7 +5,7 @@ import { useApi } from '@/components/hooks';
 import { removeClientAuthToken } from '@/lib/client';
 import { setUser } from '@/store/app';
 
-export function LogoutPage() {
+export function LogoutPage({ entra = false }: { entra?: boolean }) {
   const router = useRouter();
   const { post } = useApi();
 
@@ -13,13 +13,18 @@ export function LogoutPage() {
     async function logout() {
       await post('/auth/logout');
 
-      window.location.href = `${process.env.basePath || ''}/login`;
+      const loginUrl = `${process.env.basePath || ''}/login`;
+
+      // Also end the App Service session, otherwise /login signs the user straight back in.
+      window.location.href = entra
+        ? `/.auth/logout?post_logout_redirect_uri=${encodeURIComponent(loginUrl)}`
+        : loginUrl;
     }
 
     removeClientAuthToken();
     setUser(null);
     logout();
-  }, [router, post]);
+  }, [router, post, entra]);
 
   return null;
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { isEntraLoginEnabled } from '@/lib/entra';
 import { LogoutPage } from './LogoutPage';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +9,7 @@ export default function () {
     return null;
   }
 
-  return <LogoutPage />;
+  return <LogoutPage entra={isEntraLoginEnabled()} />;
 }
 
 export const metadata: Metadata = {
